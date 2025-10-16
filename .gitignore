@@ -5,6 +5,9 @@ Game Guide.html
 game_progress.json
 settings.json
 
+# Backup snapshots
+backups/
+
 # Python virtual environment
 venv/
 env/
