@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QLabel,
     QTextEdit,
+    QTextBrowser,
     QPlainTextEdit,
     QLineEdit,
     QFrame,
@@ -27,6 +28,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtGui import QFont, QIcon
+
+import markdown
 
 from .data import DataManager
 from .ai import AIManager
@@ -51,7 +54,6 @@ class GameTrackerApp(QMainWindow):
         self.is_dark_mode = self.settings.get("dark_mode", True)
         self.is_edit_mode = False
         self._status_messages = []
-        self._guide_output_updating = False
         self.current_worker_thread = None
         self.current_worker = None
         self.app_icon_path = app_icon_path
@@ -221,10 +223,12 @@ class GameTrackerApp(QMainWindow):
         self.view_guide_label.setContentsMargins(0, 10, 0, 5)
         layout.addWidget(self.view_guide_label)
 
-        self.view_guide_text = QLabel("")
+        self.view_guide_text = QTextBrowser()
+        self.view_guide_text.setObjectName("viewGuideText")
         self.view_guide_text.setFont(QFont("Segoe UI", 10))
-        self.view_guide_text.setWordWrap(True)
-        self.view_guide_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.view_guide_text.setOpenExternalLinks(True)
+        self.view_guide_text.setMinimumHeight(150)
+        self.view_guide_text.setFrameShape(QFrame.Shape.NoFrame)
         self.view_guide_text.setContentsMargins(0, 0, 0, 10)
         layout.addWidget(self.view_guide_text)
 
@@ -263,18 +267,31 @@ class GameTrackerApp(QMainWindow):
         self.objective_input.textChanged.connect(self._on_text_changed)
         layout.addWidget(self.objective_input)
 
-        self.edit_behavior_label = QLabel("⚙️ Output Behavior (Optional):")
+        self.edit_behavior_label = QLabel("⚙️ Output Style:")
         self.edit_behavior_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.edit_behavior_label.setWordWrap(True)
         layout.addWidget(self.edit_behavior_label)
 
-        self.behavior_input = QTextEdit()
-        self.behavior_input.setPlaceholderText("How should the guide respond? e.g., 'Tell me how to prepare'")
-        self.behavior_input.setFont(QFont("Segoe UI", 10))
-        self.behavior_input.setMinimumHeight(60)
-        self.behavior_input.setMaximumHeight(80)
-        self.behavior_input.textChanged.connect(self._on_text_changed)
-        layout.addWidget(self.behavior_input)
+        self.behavior_combo = QComboBox()
+        self.behavior_combo.addItems([
+            "Walkthrough Style (Next Step)",
+            "Strategic Planning Style",
+            "Contextual Analysis Style",
+            "Tips & Tricks Style",
+            "Custom Instructions"
+        ])
+        self.behavior_combo.setFont(QFont("Segoe UI", 10))
+        self.behavior_combo.currentIndexChanged.connect(self._on_behavior_style_changed)
+        layout.addWidget(self.behavior_combo)
+
+        self.custom_behavior_input = QTextEdit()
+        self.custom_behavior_input.setPlaceholderText("Enter custom instructions for how the guide should respond...")
+        self.custom_behavior_input.setFont(QFont("Segoe UI", 10))
+        self.custom_behavior_input.setMinimumHeight(60)
+        self.custom_behavior_input.setMaximumHeight(80)
+        self.custom_behavior_input.textChanged.connect(self._on_custom_behavior_changed)
+        self.custom_behavior_input.setVisible(False)
+        layout.addWidget(self.custom_behavior_input)
 
         self.guide_button = QPushButton("🔍 See Next Step")
         self.guide_button.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
@@ -311,13 +328,22 @@ class GameTrackerApp(QMainWindow):
         self.edit_guide_output_label.setWordWrap(True)
         layout.addWidget(self.edit_guide_output_label)
 
-        self.guide_output = QTextEdit()
-        self.guide_output.setReadOnly(False)
-        self.guide_output.setFont(QFont("Segoe UI", 10))
-        self.guide_output.setPlaceholderText("Your guide hint will appear here after clicking 'See Next Step'...")
-        self.guide_output.setMinimumHeight(120)
-        self.guide_output.textChanged.connect(self._on_guide_output_changed)
-        layout.addWidget(self.guide_output, stretch=1)
+        # Edit mode: QTextEdit for editing raw markdown
+        self.guide_output_edit = QTextEdit()
+        self.guide_output_edit.setFont(QFont("Segoe UI", 10))
+        self.guide_output_edit.setPlaceholderText("Your guide hint will appear here after clicking 'See Next Step'...")
+        self.guide_output_edit.setMinimumHeight(120)
+        self.guide_output_edit.textChanged.connect(self._on_guide_output_changed)
+        layout.addWidget(self.guide_output_edit, stretch=1)
+
+        # View mode: QTextBrowser for rendering markdown (hidden in edit mode)
+        self.guide_output_view = QTextBrowser()
+        self.guide_output_view.setObjectName("guideOutputView")
+        self.guide_output_view.setFont(QFont("Segoe UI", 10))
+        self.guide_output_view.setOpenExternalLinks(True)
+        self.guide_output_view.setMinimumHeight(120)
+        self.guide_output_view.setVisible(False)
+        layout.addWidget(self.guide_output_view, stretch=1)
 
         button_row = QHBoxLayout()
 
@@ -374,7 +400,13 @@ class GameTrackerApp(QMainWindow):
             QMessageBox.warning(self, "Game Exists", f"'{title}' is already in your library!")
             return
 
-        self.games[title] = {"situation": "", "objective": "", "behavior": "", "guide": ""}
+        self.games[title] = {
+            "situation": "", 
+            "objective": "", 
+            "behavior_style": "Walkthrough Style (Next Step)",
+            "custom_behavior": "",
+            "guide": ""
+        }
         self.data_manager.save_games(self.games)
         self._populate_game_list()
 
@@ -440,24 +472,43 @@ class GameTrackerApp(QMainWindow):
 
         self.situation_input.blockSignals(True)
         self.objective_input.blockSignals(True)
-        self.behavior_input.blockSignals(True)
-        self.guide_output.blockSignals(True)
+        self.behavior_combo.blockSignals(True)
+        self.custom_behavior_input.blockSignals(True)
+        self.guide_output_edit.blockSignals(True)
 
         self.situation_input.setPlainText(data.get("situation", ""))
         self.objective_input.setPlainText(data.get("objective", ""))
-        self.behavior_input.setPlainText(data.get("behavior", ""))
+        
+        # Load behavior style (with backward compatibility)
+        behavior_style = data.get("behavior_style", "Walkthrough Style (Next Step)")
+        custom_behavior = data.get("custom_behavior", "")
+        
+        # Backward compatibility: if old "behavior" field exists, use it as custom
+        if "behavior" in data and data["behavior"] and not behavior_style:
+            behavior_style = "Custom Instructions"
+            custom_behavior = data["behavior"]
+        
+        index = self.behavior_combo.findText(behavior_style)
+        if index >= 0:
+            self.behavior_combo.setCurrentIndex(index)
+        else:
+            self.behavior_combo.setCurrentIndex(0)
+        
+        self.custom_behavior_input.setPlainText(custom_behavior)
+        self._update_custom_behavior_visibility()
+        
         self._set_guide_output_text(data.get("guide", ""))
 
         self.situation_input.blockSignals(False)
         self.objective_input.blockSignals(False)
-        self.behavior_input.blockSignals(False)
-        self.guide_output.blockSignals(False)
+        self.behavior_combo.blockSignals(False)
+        self.custom_behavior_input.blockSignals(False)
+        self.guide_output_edit.blockSignals(False)
 
         self._update_view_mode()
 
     def _enter_edit_mode(self):
         self.is_edit_mode = True
-        self.guide_output.setReadOnly(False)
         self._update_view_mode()
 
     def _exit_edit_mode(self):
@@ -482,7 +533,16 @@ class GameTrackerApp(QMainWindow):
             self.status_panel.setVisible(False)
             self.view_situation_text.setText(situation)
             self.view_objective_text.setText(objective)
-            self.view_guide_text.setText(guide)
+            
+            # Render guide as markdown HTML
+            if guide:
+                guide_html = markdown.markdown(
+                    guide,
+                    extensions=['extra', 'nl2br', 'sane_lists']
+                )
+                self.view_guide_text.setHtml(guide_html)
+            else:
+                self.view_guide_text.clear()
 
             self.view_situation_label.setVisible(bool(situation))
             self.view_situation_text.setVisible(bool(situation))
@@ -507,10 +567,17 @@ class GameTrackerApp(QMainWindow):
         self.edit_objective_label.setVisible(visible)
         self.objective_input.setVisible(visible)
         self.edit_behavior_label.setVisible(visible)
-        self.behavior_input.setVisible(visible)
+        self.behavior_combo.setVisible(visible)
+        # Custom behavior visibility is handled by _update_custom_behavior_visibility
+        if visible:
+            self._update_custom_behavior_visibility()
+        else:
+            self.custom_behavior_input.setVisible(False)
         self.guide_button.setVisible(visible)
         self.edit_guide_output_label.setVisible(visible)
-        self.guide_output.setVisible(visible)
+        # In edit mode: show editable text, hide rendered view
+        self.guide_output_edit.setVisible(visible)
+        self.guide_output_view.setVisible(False)
         self.done_button.setVisible(visible)
         self.delete_button.setVisible(visible)
 
@@ -525,34 +592,39 @@ class GameTrackerApp(QMainWindow):
             self.game_title_label.setText("")
             self.situation_input.clear()
             self.objective_input.clear()
-            self.behavior_input.clear()
+            self.behavior_combo.setCurrentIndex(0)
+            self.custom_behavior_input.clear()
             self._set_guide_output_text("")
-            self.guide_output.setReadOnly(False)
             self.is_edit_mode = False
         else:
             self.is_edit_mode = False
             self._update_view_mode()
 
     def _set_guide_output_text(self, text):
-        """Update the guide output editor without triggering save hooks."""
-        self._guide_output_updating = True
-        try:
-            self.guide_output.setPlainText(text)
-        finally:
-            self._guide_output_updating = False
+        """Update guide output - raw markdown in edit mode, rendered HTML in view mode."""
+        # Set raw markdown in edit mode widget
+        self.guide_output_edit.setPlainText(text)
+        
+        # Convert markdown to HTML for view mode widget
+        html_content = markdown.markdown(
+            text,
+            extensions=['extra', 'nl2br', 'sane_lists']
+        )
+        self.guide_output_view.setHtml(html_content)
+        
+        # Store the raw markdown text for data persistence
+        if self.current_game and self.current_game in self.games:
+            self.games[self.current_game]["guide"] = text
+            self.data_manager.save_games(self.games)
 
     def _on_guide_output_changed(self):
-        if self._guide_output_updating:
-            return
+        """Save changes when user edits the raw markdown in edit mode."""
         if not self.current_game or self.current_game not in self.games:
             return
-
-        updated_text = self.guide_output.toPlainText()
-        self.games[self.current_game]["guide"] = updated_text
+        
+        text = self.guide_output_edit.toPlainText()
+        self.games[self.current_game]["guide"] = text
         self.data_manager.save_games(self.games)
-
-        if not self.is_edit_mode:
-            self.view_guide_text.setText(updated_text)
 
     def _on_text_changed(self):
         if not self.current_game or self.current_game not in self.games:
@@ -560,8 +632,28 @@ class GameTrackerApp(QMainWindow):
 
         self.games[self.current_game]["situation"] = self.situation_input.toPlainText()
         self.games[self.current_game]["objective"] = self.objective_input.toPlainText()
-        self.games[self.current_game]["behavior"] = self.behavior_input.toPlainText()
         self.data_manager.save_games(self.games)
+
+    def _on_behavior_style_changed(self, index):
+        if not self.current_game or self.current_game not in self.games:
+            return
+        
+        behavior_style = self.behavior_combo.currentText()
+        self.games[self.current_game]["behavior_style"] = behavior_style
+        self.data_manager.save_games(self.games)
+        self._update_custom_behavior_visibility()
+
+    def _on_custom_behavior_changed(self):
+        if not self.current_game or self.current_game not in self.games:
+            return
+        
+        self.games[self.current_game]["custom_behavior"] = self.custom_behavior_input.toPlainText()
+        self.data_manager.save_games(self.games)
+
+    def _update_custom_behavior_visibility(self):
+        """Show/hide custom behavior input based on selected style"""
+        is_custom = self.behavior_combo.currentText() == "Custom Instructions"
+        self.custom_behavior_input.setVisible(is_custom)
 
     # ------------------------------------------------------------------
     # AI guidance workflow
@@ -582,19 +674,22 @@ class GameTrackerApp(QMainWindow):
             QMessageBox.warning(self, "API Key Missing", "Please enter your API key in the top bar!")
             return
 
+        # Get the behavior instruction based on selected style
+        behavior_style = self.behavior_combo.currentText()
+        behavior_instruction = self._get_behavior_instruction(behavior_style)
+
         self.guide_button.setEnabled(False)
         self.guide_button.setText("⏳ Generating...")
         self._clear_status_log()
         self._status_messages.append("Starting guide generation...")
         self._show_status_panel()
-        self.guide_output.setReadOnly(True)
         self._set_guide_output_text("Searching game guides for your next move...")
 
         params = {
             "game_title": self.current_game,
             "situation": situation,
             "objective": self.objective_input.toPlainText().strip(),
-            "behavior": self.behavior_input.toPlainText().strip(),
+            "behavior": behavior_instruction,
             "api_key": api_key,
             "provider": provider,
         }
@@ -620,6 +715,58 @@ class GameTrackerApp(QMainWindow):
 
         self.current_worker_thread.start()
 
+    def _get_behavior_instruction(self, behavior_style):
+        """Convert behavior style selection into AI instruction"""
+        if behavior_style == "Walkthrough Style (Next Step)":
+            return ""  # Use default behavior from AI manager
+        
+        elif behavior_style == "Strategic Planning Style":
+            return """Instead of just the next step, provide a strategic breakdown:
+
+1. FINAL GOAL: What's the ultimate objective related to this situation?
+
+2. IMMEDIATE GOAL: What should they focus on right now?
+
+3. ACTION PLAN (numbered steps):
+   - Start with foundation/orientation tasks
+   - Include preparation and strengthening
+   - List the first major challenge to tackle
+   - Mention long-term items to collect
+
+4. QUICK TO-DO LIST: Give 3-5 immediate actionable bullet points.
+
+Search game guides and provide specific advice based on their actual game progress."""
+        
+        elif behavior_style == "Contextual Analysis Style":
+            return """Don't just tell them the next step. Instead, analyze and explain WHERE they are in the game:
+
+- What quest/chapter/section is this part of?
+- What likely happened BEFORE this point (leading up to it)?
+- What will happen AFTER their current situation?
+- What are the requirements or story context?
+
+Format your response to show: [What came before] → [Current situation] → [What comes next]
+
+Focus on helping them understand their position in the game's progression, not on telling them what to do."""
+        
+        elif behavior_style == "Tips & Tricks Style":
+            return """Provide tips, tricks, and advantages for their situation:
+
+- Game exploits or shortcuts they can use
+- Hidden items or secrets in their current area
+- Optimal strategies or time-savers
+- Puzzle solutions or passwords if relevant
+- Any "cheese" strategies or mechanics to leverage
+
+Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun tricks, secrets, and optimization strategies."""
+        
+        elif behavior_style == "Custom Instructions":
+            custom = self.custom_behavior_input.toPlainText().strip()
+            return custom if custom else ""
+        
+        else:
+            return ""
+
     def _on_worker_finished(self, result):
         self._reset_guide_button()
 
@@ -627,7 +774,6 @@ class GameTrackerApp(QMainWindow):
             message = result["error"]
             QMessageBox.critical(self, "API Error", f"Error generating guide:\n\n{message}")
             self._set_guide_output_text(f"Failed to generate hint.\n\nError: {message}")
-            self.guide_output.setReadOnly(False)
             self._hide_status_panel()
             return
 
@@ -639,7 +785,6 @@ class GameTrackerApp(QMainWindow):
 
         if not guides:
             self._set_guide_output_text("No guide suggestions were returned. Please try again with more context.")
-            self.guide_output.setReadOnly(False)
             self._hide_status_panel()
             return
 
@@ -660,7 +805,6 @@ class GameTrackerApp(QMainWindow):
             self._update_view_mode()
 
         self._hide_status_panel()
-        self.guide_output.setReadOnly(False)
 
     def _on_status_update(self, message):
         if not message:
@@ -856,6 +1000,10 @@ class GameTrackerApp(QMainWindow):
             QListWidget::item:hover {{ background-color: {hover_bg}; color: {text_primary}; }}
             QTextEdit {{ border: 2px solid {border_color}; border-radius: 6px; padding: 10px; background-color: {bg_input}; color: {text_primary}; }}
             QTextEdit:focus {{ border: 2px solid #0078d4; }}
+            QTextBrowser {{ border: 2px solid {border_color}; border-radius: 6px; padding: 10px; background-color: {bg_input}; color: {text_primary}; }}
+            QTextBrowser:focus {{ border: 2px solid #0078d4; }}
+            QTextBrowser#viewGuideText {{ border: none; background-color: transparent; padding: 0px; }}
+            QTextBrowser#guideOutputView {{ border: 2px solid {border_color}; border-radius: 6px; padding: 10px; background-color: {bg_input}; }}
             QPlainTextEdit#statusDisplay {{ border: 1px solid {border_color}; border-radius: 6px; padding: 8px; background-color: {bg_panel}; color: {text_primary}; }}
             QPlainTextEdit#statusDisplay:focus {{ border: 1px solid {border_color}; }}
             QScrollArea {{ border: none; background-color: {bg_panel}; }}

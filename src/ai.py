@@ -66,23 +66,61 @@ class AIManager:
                 f"{refined_context}"
             )
             prompt_parts.append(
-                "Cross-check this researched context against the player's own words before deciding the next step."
+                "Cross-check this researched context against the player's own words before making your response."
             )
         
         if behavior:
             # If there's special behavior instruction, add it
-            prompt_parts.append(f"Special request: {behavior}")
-            prompt_parts.append("Taking this request into account, what is the next step?")
+            prompt_parts.append(behavior)
         else:
             # Standard question
             prompt_parts.append("Search online game guides and walkthroughs to find: What is the EXACT next step the player should take right now?")
+            prompt_parts.append("Provide ONLY the immediate, actionable next step. Be specific and concise.")
         
-        prompt_parts.append("Provide ONLY the immediate, actionable next step. Be specific and concise. If you find conflicting information, provide the most commonly recommended solution.")
+        if not behavior:
+            prompt_parts.append("If you find conflicting information, provide the most commonly recommended solution.")
         
         user_prompt = " ".join(prompt_parts)
         
-        # Enhanced system prompt for accuracy
-        system_prompt = f"""You are an expert video game guide assistant. Your task is to provide accurate, actionable guidance based on REAL game walkthroughs and guides found online.
+        # Enhanced system prompt for accuracy - adjusted based on behavior
+        if behavior and "strategic" in behavior.lower():
+            system_prompt = f"""You are an expert video game guide assistant. Provide comprehensive strategic guidance based on REAL game walkthroughs and guides found online.
+
+IMPORTANT INSTRUCTIONS:
+1. Search the internet for "{search_query}" to find accurate walkthrough information
+2. Use ONLY information from actual game guides, walkthroughs, and wikis
+3. Provide strategic breakdown with context and planning
+4. Be specific with locations, items, or actions
+5. Structure your response according to the user's request
+6. Do NOT make up information - only use what you find in guides
+
+Focus on accuracy and helpful structure."""
+        elif behavior and "context" in behavior.lower():
+            system_prompt = f"""You are an expert video game guide assistant. Analyze the player's position in the game based on REAL walkthroughs and guides found online.
+
+IMPORTANT INSTRUCTIONS:
+1. Search the internet for "{search_query}" to find accurate walkthrough information
+2. Use ONLY information from actual game guides, walkthroughs, and wikis
+3. Focus on explaining WHERE they are in the game's progression
+4. Provide context about what comes before and after
+5. Do NOT just tell them what to do next - explain their situation
+6. Do NOT make up information - only use what you find in guides
+
+Focus on contextual understanding over direction."""
+        elif behavior and "tips" in behavior.lower() or behavior and "tricks" in behavior.lower():
+            system_prompt = f"""You are an expert video game guide assistant specializing in tips, tricks, and optimization. Provide helpful secrets and strategies based on REAL game guides and community knowledge.
+
+IMPORTANT INSTRUCTIONS:
+1. Search the internet for "{search_query}" along with terms like "tips", "tricks", "secrets", "exploits"
+2. Use information from game guides, wikis, and community resources
+3. Focus on optimization, shortcuts, and advantages
+4. Include hidden content and secret techniques
+5. Provide practical tips the player can use immediately
+6. Do NOT make up information - only use what you find
+
+Focus on giving them an edge."""
+        else:
+            system_prompt = f"""You are an expert video game guide assistant. Your task is to provide accurate, actionable guidance based on REAL game walkthroughs and guides found online.
 
 IMPORTANT INSTRUCTIONS:
 1. Search the internet for "{search_query}" to find accurate walkthrough information
