@@ -59,7 +59,7 @@ class GameTrackerApp(QMainWindow):
         self.app_icon_path = app_icon_path
 
         # Window setup
-        self.setWindowTitle("NextStep")
+        self.setWindowTitle("NextStep v2.0")
         self.setMinimumSize(1000, 600)
         if self.app_icon_path:
             self.setWindowIcon(QIcon(self.app_icon_path))

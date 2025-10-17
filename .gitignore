@@ -8,6 +8,12 @@ settings.json
 # Backup snapshots
 backups/
 
+# Documentation (reference only)
+docs/
+
+# Build script (local use only)
+build.ps1
+
 # Python virtual environment
 venv/
 env/

@@ -1,0 +1,59 @@
+NextStep v2.0 - Release Notes
+=============================
+
+Date: October 17, 2025
+
+What's New
+----------
+
+🎨 Output Style Dropdown
+  - 5 preset AI response styles: Walkthrough, Strategic Planning, Contextual Analysis, Tips & Tricks
+  - Custom instructions option for personalized AI behavior
+  - Replaced single text input with organized dropdown menu
+
+📝 Markdown Rendering
+  - Beautiful formatted text display in view mode
+  - Proper rendering of headers, lists, bold, italic, and links
+  - Raw markdown editing in edit mode
+  - No more "asterisks everywhere" in AI responses
+
+🎮 Game Status Tracking
+  - Mark games as "In Progress" or "Completed"
+  - Visual ✅ checkmark for completed games in library
+  - Status displayed at top in view mode
+  - Status dropdown at top in edit mode
+
+🤖 Simplified AI Provider
+  - Gemini-only (removed ChatGPT/Claude/Other options)
+  - Cleaner UI with static "AI Provider: Gemini" label
+  - Focused on what actually works
+
+Bug Fixes
+---------
+
+- Fixed view mode styling (removed visible borders on guide text)
+- Fixed edit mode not being editable (split into separate view/edit widgets)
+- Fixed AttributeError crashes from old variable references
+- Fixed Strategic Planning style returning fallback text
+- Fixed game status not showing in view mode by default
+
+Technical Changes
+-----------------
+
+- Added markdown library dependency
+- Split guide output into separate view and edit widgets
+- Improved widget visibility management
+- Better signal blocking during data loading
+- Backward compatible with old save files
+
+Installation
+------------
+
+Requirements:
+- Python 3.9+
+- PyQt6, requests, cryptography, markdown
+
+To install: pip install pyqt6 requests cryptography markdown
+
+Or use the standalone NextStep v2.0.exe (no installation needed)
+
