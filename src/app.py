@@ -99,17 +99,9 @@ class GameTrackerApp(QMainWindow):
         layout.setContentsMargins(15, 10, 15, 10)
         layout.setSpacing(10)
 
-        ai_label = QLabel("AI Provider:")
-        ai_label.setFont(QFont("Segoe UI", 10))
+        ai_label = QLabel("AI Provider: Gemini")
+        ai_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         layout.addWidget(ai_label)
-
-        self.ai_provider_combo = QComboBox()
-        self.ai_provider_combo.addItems(["Gemini", "ChatGPT", "Claude", "Other"])
-        self.ai_provider_combo.setFont(QFont("Segoe UI", 10))
-        self.ai_provider_combo.setFixedWidth(120)
-        self.ai_provider_combo.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.ai_provider_combo.currentTextChanged.connect(self._on_ai_provider_changed)
-        layout.addWidget(self.ai_provider_combo)
 
         api_label = QLabel("API Key:")
         api_label.setFont(QFont("Segoe UI", 10))
@@ -186,6 +178,20 @@ class GameTrackerApp(QMainWindow):
         self.game_title_label.setWordWrap(True)
         layout.addWidget(self.game_title_label)
 
+        # View mode: Status as label
+        self.view_status_label = QLabel("🎮 Status:")
+        self.view_status_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.view_status_label.setWordWrap(True)
+        self.view_status_label.setContentsMargins(0, 5, 0, 0)
+        layout.addWidget(self.view_status_label)
+
+        self.view_status_text = QLabel("")
+        self.view_status_text.setFont(QFont("Segoe UI", 10))
+        self.view_status_text.setWordWrap(True)
+        self.view_status_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.view_status_text.setContentsMargins(0, 0, 0, 5)
+        layout.addWidget(self.view_status_text)
+
         self.divider = QFrame()
         self.divider.setFrameShape(QFrame.Shape.HLine)
         self.divider.setMaximumHeight(2)
@@ -240,6 +246,18 @@ class GameTrackerApp(QMainWindow):
         self.edit_button.setMinimumHeight(40)
         self.edit_button.clicked.connect(self._enter_edit_mode)
         layout.addWidget(self.edit_button)
+
+        # Edit mode: Status as dropdown
+        self.edit_status_label = QLabel("🎮 Game Status:")
+        self.edit_status_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.edit_status_label.setWordWrap(True)
+        layout.addWidget(self.edit_status_label)
+
+        self.status_combo = QComboBox()
+        self.status_combo.addItems(["In Progress", "Completed"])
+        self.status_combo.setFont(QFont("Segoe UI", 10))
+        self.status_combo.currentIndexChanged.connect(self._on_status_changed)
+        layout.addWidget(self.status_combo)
 
         self.edit_situation_label = QLabel("📝 Current Situation / What I Last Did:")
         self.edit_situation_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
@@ -384,7 +402,16 @@ class GameTrackerApp(QMainWindow):
     def _populate_game_list(self):
         self.game_list.clear()
         for title in sorted(self.games.keys()):
-            self.game_list.addItem(QListWidgetItem(title))
+            game_data = self.games[title]
+            status = game_data.get("status", "In Progress")
+            
+            # Add visual indicator for completed games
+            if status == "Completed":
+                display_text = f"✅ {title}"
+            else:
+                display_text = title
+            
+            self.game_list.addItem(QListWidgetItem(display_text))
 
     def _add_new_game(self):
         dialog = AddGameDialog(self)
@@ -405,7 +432,8 @@ class GameTrackerApp(QMainWindow):
             "objective": "", 
             "behavior_style": "Walkthrough Style (Next Step)",
             "custom_behavior": "",
-            "guide": ""
+            "guide": "",
+            "status": "In Progress"  # New games default to "In Progress"
         }
         self.data_manager.save_games(self.games)
         self._populate_game_list()
@@ -460,7 +488,11 @@ class GameTrackerApp(QMainWindow):
         if not item:
             return
 
+        # Remove status emoji if present
         title = item.text()
+        if title.startswith("✅ "):
+            title = title[2:]
+        
         self.current_game = title
         self.is_edit_mode = False
         self._load_game_details(title)
@@ -472,12 +504,22 @@ class GameTrackerApp(QMainWindow):
 
         self.situation_input.blockSignals(True)
         self.objective_input.blockSignals(True)
+        self.status_combo.blockSignals(True)
         self.behavior_combo.blockSignals(True)
         self.custom_behavior_input.blockSignals(True)
         self.guide_output_edit.blockSignals(True)
 
         self.situation_input.setPlainText(data.get("situation", ""))
         self.objective_input.setPlainText(data.get("objective", ""))
+        
+        # Load status (with backward compatibility)
+        status = data.get("status", "In Progress")
+        self.view_status_text.setText(status)  # Set view mode label
+        status_index = self.status_combo.findText(status)
+        if status_index >= 0:
+            self.status_combo.setCurrentIndex(status_index)
+        else:
+            self.status_combo.setCurrentIndex(0)
         
         # Load behavior style (with backward compatibility)
         behavior_style = data.get("behavior_style", "Walkthrough Style (Next Step)")
@@ -501,6 +543,7 @@ class GameTrackerApp(QMainWindow):
 
         self.situation_input.blockSignals(False)
         self.objective_input.blockSignals(False)
+        self.status_combo.blockSignals(False)
         self.behavior_combo.blockSignals(False)
         self.custom_behavior_input.blockSignals(False)
         self.guide_output_edit.blockSignals(False)
@@ -544,6 +587,10 @@ class GameTrackerApp(QMainWindow):
             else:
                 self.view_guide_text.clear()
 
+            # Status should always be visible in view mode
+            self.view_status_label.setVisible(True)
+            self.view_status_text.setVisible(True)
+            
             self.view_situation_label.setVisible(bool(situation))
             self.view_situation_text.setVisible(bool(situation))
             self.view_objective_label.setVisible(bool(objective))
@@ -553,6 +600,8 @@ class GameTrackerApp(QMainWindow):
             self.edit_button.setVisible(True)
 
     def _set_view_elements_visible(self, visible):
+        self.view_status_label.setVisible(visible)
+        self.view_status_text.setVisible(visible)
         self.view_situation_label.setVisible(visible)
         self.view_situation_text.setVisible(visible)
         self.view_objective_label.setVisible(visible)
@@ -562,6 +611,8 @@ class GameTrackerApp(QMainWindow):
         self.edit_button.setVisible(visible)
 
     def _set_edit_elements_visible(self, visible):
+        self.edit_status_label.setVisible(visible)
+        self.status_combo.setVisible(visible)
         self.edit_situation_label.setVisible(visible)
         self.situation_input.setVisible(visible)
         self.edit_objective_label.setVisible(visible)
@@ -649,6 +700,16 @@ class GameTrackerApp(QMainWindow):
         
         self.games[self.current_game]["custom_behavior"] = self.custom_behavior_input.toPlainText()
         self.data_manager.save_games(self.games)
+
+    def _on_status_changed(self, index):
+        if not self.current_game or self.current_game not in self.games:
+            return
+        
+        status = self.status_combo.currentText()
+        self.games[self.current_game]["status"] = status
+        self.view_status_text.setText(status)  # Update view mode label
+        self.data_manager.save_games(self.games)
+        self._populate_game_list()
 
     def _update_custom_behavior_visibility(self):
         """Show/hide custom behavior input based on selected style"""
@@ -1034,21 +1095,17 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
     # Settings persistence helpers
     # ------------------------------------------------------------------
     def _load_api_settings(self):
-        provider = self.settings.get("ai_provider", "Gemini")
-        index = self.ai_provider_combo.findText(provider)
-        if index >= 0:
-            self.ai_provider_combo.setCurrentIndex(index)
-
+        # Always use Gemini as the provider
+        provider = "Gemini"
+        self.settings["ai_provider"] = provider
+        
         api_key = self.data_manager.load_api_key(provider)
         if api_key:
             self.api_key_input.setText(api_key)
 
-    def _on_ai_provider_changed(self, provider):
-        self.settings["ai_provider"] = provider
-        self.data_manager.save_settings(self.settings)
-
     def _on_api_key_changed(self):
-        provider = self.settings.get("ai_provider", "Gemini")
+        # Always use Gemini
+        provider = "Gemini"
         api_key = self.api_key_input.text().strip()
         if api_key:
             self.data_manager.save_api_key(provider, api_key)
