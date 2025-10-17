@@ -6,6 +6,11 @@ What's New
   - Theme dropdown with emoji indicators
   - Persistent theme selection
 
+📚 Library Sorting Controls
+  - "Sort by" menu with Date Added and Alphabetically options
+  - Adjacent arrow toggle to switch between ascending and descending order
+  - Remembers selection across sessions
+
 Bug Fixes
 ---------
 
@@ -18,3 +23,4 @@ Technical Changes
 - Replaced theme toggle button with dropdown (QComboBox)
 - Removed deprecated dark_mode boolean setting
 - Automatic settings migration for seamless upgrade
+- Added toolbar tool button + menu implementation for sorting controls

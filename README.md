@@ -9,6 +9,7 @@ A modern, Windows 11-styled desktop application that helps you track your progre
 - Visual status indicators (✅ for completed games)
 - Track completion status: **In Progress** or **Completed**
 - Clean, organized list view with search capabilities
+- Quick sorting controls (Date Added / Alphabetically with ascending & descending toggle)
 - Delete games with confirmation
 
 ### 🎮 Comprehensive Game Tracking
@@ -119,6 +120,11 @@ For each game, track:
 - Choose from: 🌙 Dark, ☀️ Light, 🌃 Cyberpunk, 🕹️ Retro, or 🎮 Gaming
 - Your theme preference is saved automatically
 
+### Sorting Your Library
+- Click the **Sort by** button in the toolbar to open the menu
+- Choose **Date Added** or **Alphabetically** to change the sort mode
+- Use the **↑ / ↓** button next to the menu to toggle between ascending and descending order
+
 ### Marking Games as Completed
 1. Select a game and click **✏️ Edit**
 2. Change **Game Status** dropdown to **Completed**
@@ -145,6 +151,7 @@ For each game, track:
 - **Improved Library Display**: Cover art, custom icons, grid view, metadata badges
 
 ### ✅ Recently Completed
+- ✅ **Library Sorting Controls** (Sort by Date Added/Alphabetically with arrow toggle)
 - ✅ **Multiple Themes** (5 themes: Dark, Light, Cyberpunk, Retro, Gaming)
 - ✅ **Game Status Tracking** (In Progress/Completed with visual indicators)
 - ✅ **Output Style Dropdown** (5 preset styles + custom)

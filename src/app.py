@@ -25,9 +25,11 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QScrollArea,
     QDialog,
+    QToolButton,
+    QMenu,
 )
 from PyQt6.QtCore import Qt, QThread
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon, QAction
 
 import markdown
 
@@ -65,6 +67,10 @@ class GameTrackerApp(QMainWindow):
             self.current_theme_index = self.themes.index(saved_theme)
         except ValueError:
             self.current_theme_index = 0  # Default to Dark
+        
+        # Sorting management
+        self.sort_method = self.settings.get("sort_method", "Date Added")
+        self.sort_ascending = self.settings.get("sort_ascending", False)
         
         # Window setup
         self.setWindowTitle("NextStep v2.0")
@@ -106,24 +112,50 @@ class GameTrackerApp(QMainWindow):
         layout.setContentsMargins(15, 10, 15, 10)
         layout.setSpacing(10)
 
-        ai_label = QLabel("AI Provider: Gemini")
-        ai_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        layout.addWidget(ai_label)
+        # Sort dropdown implemented with a tool button menu (always shows "Sort by")
+        self.sort_button = QToolButton()
+        self.sort_button.setObjectName("sortButton")
+        self.sort_button.setText("Sort by")
+        self.sort_button.setFont(QFont("Segoe UI", 10))
+        self.sort_button.setFixedSize(120, 35)
+        self.sort_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sort_button.setToolTip("Choose how to sort your game library")
+        self.sort_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
-        api_label = QLabel("API Key:")
-        api_label.setFont(QFont("Segoe UI", 10))
-        layout.addWidget(api_label)
+        self.sort_menu = QMenu(self)
+        self.sort_action_date = QAction("Date Added", self)
+        self.sort_action_date.setCheckable(True)
+        self.sort_action_date.triggered.connect(lambda: self._on_sort_selected("Date Added"))
+        self.sort_menu.addAction(self.sort_action_date)
 
-        self.api_key_input = QLineEdit()
-        self.api_key_input.setPlaceholderText("Enter your API key...")
-        self.api_key_input.setFont(QFont("Segoe UI", 10))
-        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key_input.setFixedWidth(250)
-        self.api_key_input.textChanged.connect(self._on_api_key_changed)
-        layout.addWidget(self.api_key_input)
+        self.sort_action_alpha = QAction("Alphabetically", self)
+        self.sort_action_alpha.setCheckable(True)
+        self.sort_action_alpha.triggered.connect(lambda: self._on_sort_selected("Alphabetically"))
+        self.sort_menu.addAction(self.sort_action_alpha)
 
-        layout.addStretch()
+        self.sort_button.setMenu(self.sort_menu)
+        self._update_sort_menu_checks()
 
+        # Group sort controls together so they feel linked
+        sort_controls = QHBoxLayout()
+        sort_controls.setContentsMargins(0, 0, 0, 0)
+        sort_controls.setSpacing(4)
+
+        sort_controls.addWidget(self.sort_button)
+
+        # Sort order toggle button with arrow icons
+        self.sort_order_button = QPushButton()
+        self.sort_order_button.setObjectName("sortOrderButton")
+        self.sort_order_button.setFont(QFont("Segoe UI", 16))
+        self.sort_order_button.setFixedSize(35, 35)
+        self.sort_order_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sort_order_button.clicked.connect(self._toggle_sort_order)
+        self._update_sort_order_button_text()
+        sort_controls.addWidget(self.sort_order_button)
+
+        layout.addLayout(sort_controls)
+
+        # Theme dropdown
         self.theme_combo = QComboBox()
         self.theme_combo.setFont(QFont("Segoe UI", 10))
         self.theme_combo.setFixedSize(150, 35)
@@ -138,6 +170,26 @@ class GameTrackerApp(QMainWindow):
         self.theme_combo.setCurrentIndex(self.current_theme_index)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         layout.addWidget(self.theme_combo)
+
+        layout.addStretch()
+
+        # AI Provider label
+        ai_label = QLabel("AI Provider: Gemini")
+        ai_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        layout.addWidget(ai_label)
+
+        # API Key input
+        api_label = QLabel("API Key:")
+        api_label.setFont(QFont("Segoe UI", 10))
+        layout.addWidget(api_label)
+
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setPlaceholderText("Enter your API key...")
+        self.api_key_input.setFont(QFont("Segoe UI", 10))
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_input.setFixedWidth(250)
+        self.api_key_input.textChanged.connect(self._on_api_key_changed)
+        layout.addWidget(self.api_key_input)
 
         bar.setLayout(layout)
         return bar
@@ -411,20 +463,6 @@ class GameTrackerApp(QMainWindow):
     # ------------------------------------------------------------------
     # Data helpers
     # ------------------------------------------------------------------
-    def _populate_game_list(self):
-        self.game_list.clear()
-        for title in sorted(self.games.keys()):
-            game_data = self.games[title]
-            status = game_data.get("status", "In Progress")
-            
-            # Add visual indicator for completed games
-            if status == "Completed":
-                display_text = f"✅ {title}"
-            else:
-                display_text = title
-            
-            self.game_list.addItem(QListWidgetItem(display_text))
-
     def _add_new_game(self):
         dialog = AddGameDialog(self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -1030,6 +1068,86 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
         
         self._apply_styles()
 
+    # ------------------------------------------------------------------
+    # Sorting functions
+    # ------------------------------------------------------------------
+    def _on_sort_selected(self, method: str):
+        if self.sort_method == method:
+            return
+
+        self.sort_method = method
+
+        # Save sort preference
+        self.settings["sort_method"] = self.sort_method
+        self.data_manager.save_settings(self.settings)
+
+        self._update_sort_menu_checks()
+        self._sort_and_refresh_games()
+
+    def _update_sort_menu_checks(self):
+        if not hasattr(self, "sort_action_date"):
+            return
+
+        self.sort_action_date.setChecked(self.sort_method == "Date Added")
+        self.sort_action_alpha.setChecked(self.sort_method == "Alphabetically")
+
+    def _toggle_sort_order(self):
+        self.sort_ascending = not self.sort_ascending
+        
+        # Save sort order preference
+        self.settings["sort_ascending"] = self.sort_ascending
+        self.data_manager.save_settings(self.settings)
+        
+        self._update_sort_order_button_text()
+        self._sort_and_refresh_games()
+
+    def _update_sort_order_button_text(self):
+        if not hasattr(self, "sort_order_button"):
+            return
+
+        if self.sort_ascending:
+            self.sort_order_button.setText("↑")
+            self.sort_order_button.setToolTip("Ascending order (click to change)")
+        else:
+            self.sort_order_button.setText("↓")
+            self.sort_order_button.setToolTip("Descending order (click to change)")
+
+    def _sort_and_refresh_games(self):
+        # Preserve current selection while refreshing the list
+        current_title = self.current_game["title"] if self.current_game else None
+        self._populate_game_list()
+
+        if current_title:
+            normalized_current = current_title.strip()
+            for index in range(self.game_list.count()):
+                item_text = self.game_list.item(index).text().replace("✅ ", "").strip()
+                if item_text == normalized_current:
+                    self.game_list.setCurrentRow(index)
+                    break
+
+    def _populate_game_list(self):
+        self.game_list.clear()
+        
+        # Get list of titles based on sort method
+        if self.sort_method == "Alphabetically":
+            titles = sorted(self.games.keys(), key=str.lower, reverse=not self.sort_ascending)
+        else:  # Date Added - maintain insertion order
+            titles = list(self.games.keys())
+            if not self.sort_ascending:
+                titles.reverse()
+        
+        for title in titles:
+            game_data = self.games[title]
+            status = game_data.get("status", "In Progress")
+            
+            # Add visual indicator for completed games
+            if status == "Completed":
+                display_text = f"✅ {title}"
+            else:
+                display_text = title
+            
+            self.game_list.addItem(QListWidgetItem(display_text))
+
     def _apply_styles(self):
         current_theme = self.themes[self.current_theme_index]
         
@@ -1140,6 +1258,11 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
             QPushButton:disabled {{ background-color: #cccccc; color: #666666; }}
             QPushButton#deleteButton {{ background-color: #d32f2f; }}
             QPushButton#deleteButton:hover {{ background-color: #b71c1c; }}
+            QPushButton#sortOrderButton {{ background-color: {bg_input}; color: {text_primary}; border: 1px solid {border_color}; border-radius: 4px; padding: 0px; }}
+            QPushButton#sortOrderButton:hover {{ background-color: {hover_bg}; }}
+            QToolButton#sortButton {{ background-color: {bg_input}; color: {text_primary}; border: 1px solid {border_color}; border-radius: 4px; padding: 5px 12px; }}
+            QToolButton#sortButton:hover {{ background-color: {hover_bg}; }}
+            QToolButton#sortButton::menu-indicator {{ image: none; width: 0px; }}
             QComboBox {{ background-color: {bg_input}; color: {text_primary}; border: 2px solid {border_color}; border-radius: 4px; padding: 5px; }}
             QComboBox:hover {{ border: 2px solid #0078d4; }}
             QComboBox::drop-down {{ border: none; }}
