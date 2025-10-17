@@ -30,7 +30,13 @@ For each game, track:
 - Beautiful **Markdown rendering** with formatting, lists, links, and more
 
 ### 🎨 Modern User Interface
-- **Dark/Light Theme** toggle with persistence
+- **5 Beautiful Themes**: Dark, Light, Cyberpunk, Retro, and Gaming themes
+  - 🌙 **Dark**: Modern dark theme with blue accents
+  - ☀️ **Light**: Clean bright theme for daytime use
+  - 🌃 **Cyberpunk**: Futuristic neon cyan and magenta on dark backgrounds
+  - 🕹️ **Retro**: Classic terminal-style with green text on black
+  - 🎮 **Gaming**: Zelda-inspired forest green with gold accents
+- **Theme persistence**: Your chosen theme is remembered
 - **View Mode**: Clean, readable display with markdown rendering
 - **Edit Mode**: Easy editing with syntax highlighting
 - **Seamless transitions** between modes
@@ -109,8 +115,9 @@ For each game, track:
 - **Edit Mode**: See raw markdown if you want to copy/edit
 
 ### Switching Themes
-- Click the **🌙 Dark** / **☀️ Light** button in the toolbar
-- Your preference is saved automatically
+- Use the **Theme dropdown** in the toolbar to select your preferred theme
+- Choose from: 🌙 Dark, ☀️ Light, 🌃 Cyberpunk, 🕹️ Retro, or 🎮 Gaming
+- Your theme preference is saved automatically
 
 ### Marking Games as Completed
 1. Select a game and click **✏️ Edit**
@@ -122,7 +129,7 @@ For each game, track:
 ## 🗺️ Future Plans
 
 ### 🔥 High Priority
-- **More Themes**: Cyberpunk, Retro, Gaming-inspired themes, Custom theme creator
+- **Custom Theme Creator**: Create and save your own custom color themes
 
 ### 📋 Medium Priority
 - **Search/Filter Games**: Search bar, filter by status, sort options, quick tags

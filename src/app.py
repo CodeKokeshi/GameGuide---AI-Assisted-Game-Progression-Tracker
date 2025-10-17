@@ -51,13 +51,21 @@ class GameTrackerApp(QMainWindow):
         self.games = self.data_manager.load_games()
         self.settings = self.data_manager.load_settings()
         self.current_game = None
-        self.is_dark_mode = self.settings.get("dark_mode", True)
         self.is_edit_mode = False
         self._status_messages = []
         self.current_worker_thread = None
         self.current_worker = None
         self.app_icon_path = app_icon_path
 
+        # Theme management
+        self.themes = ["Dark", "Light", "Cyberpunk", "Retro", "Gaming"]
+        saved_theme = self.settings.get("theme", "Dark")
+        # Find the index of the saved theme, default to Dark if not found
+        try:
+            self.current_theme_index = self.themes.index(saved_theme)
+        except ValueError:
+            self.current_theme_index = 0  # Default to Dark
+        
         # Window setup
         self.setWindowTitle("NextStep v2.0")
         self.setMinimumSize(1000, 600)
@@ -66,7 +74,6 @@ class GameTrackerApp(QMainWindow):
 
         self._build_ui()
         self._apply_styles()
-        self._update_theme_button()
         self._load_api_settings()
 
     # ------------------------------------------------------------------
@@ -117,13 +124,20 @@ class GameTrackerApp(QMainWindow):
 
         layout.addStretch()
 
-        self.theme_button = QPushButton()
-        self.theme_button.setFont(QFont("Segoe UI", 10))
-        self.theme_button.setFixedSize(100, 35)
-        self.theme_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.theme_button.setObjectName("themeButton")
-        self.theme_button.clicked.connect(self._toggle_theme)
-        layout.addWidget(self.theme_button)
+        self.theme_combo = QComboBox()
+        self.theme_combo.setFont(QFont("Segoe UI", 10))
+        self.theme_combo.setFixedSize(150, 35)
+        self.theme_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.theme_combo.addItems([
+            "🌙 Dark",
+            "☀️ Light",
+            "🌃 Cyberpunk",
+            "🕹️ Retro",
+            "🎮 Gaming"
+        ])
+        self.theme_combo.setCurrentIndex(self.current_theme_index)
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
+        layout.addWidget(self.theme_combo)
 
         bar.setLayout(layout)
         return bar
@@ -1006,18 +1020,20 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
     # ------------------------------------------------------------------
     # Theme & settings persistence
     # ------------------------------------------------------------------
-    def _toggle_theme(self):
-        self.is_dark_mode = not self.is_dark_mode
-        self.settings["dark_mode"] = self.is_dark_mode
+    def _on_theme_changed(self, index):
+        self.current_theme_index = index
+        current_theme = self.themes[index]
+        
+        # Save theme preference
+        self.settings["theme"] = current_theme
         self.data_manager.save_settings(self.settings)
+        
         self._apply_styles()
-        self._update_theme_button()
-
-    def _update_theme_button(self):
-        self.theme_button.setText("🌙 Dark" if self.is_dark_mode else "☀️ Light")
 
     def _apply_styles(self):
-        if self.is_dark_mode:
+        current_theme = self.themes[self.current_theme_index]
+        
+        if current_theme == "Dark":
             bg_main = "#1e1e1e"
             bg_panel = "#252526"
             bg_input = "#2d2d30"
@@ -1031,7 +1047,8 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
             scrollbar_bg = "#3e3e42"
             scrollbar_handle = "#686868"
             scrollbar_hover = "#9e9e9e"
-        else:
+            
+        elif current_theme == "Light":
             bg_main = "#f9f9f9"
             bg_panel = "#ffffff"
             bg_input = "#ffffff"
@@ -1045,6 +1062,52 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
             scrollbar_bg = "#f0f0f0"
             scrollbar_handle = "#c0c0c0"
             scrollbar_hover = "#a0a0a0"
+            
+        elif current_theme == "Cyberpunk":
+            bg_main = "#0a0e27"
+            bg_panel = "#131629"
+            bg_input = "#1a1f3a"
+            bg_list = "#1a1f3a"
+            text_primary = "#00ffff"
+            text_secondary = "#ff00ff"
+            border_color = "#ff00ff"
+            hover_bg = "#1f2544"
+            selected_bg = "#2d1b69"
+            selected_text = "#00ffff"
+            scrollbar_bg = "#1f2544"
+            scrollbar_handle = "#ff00ff"
+            scrollbar_hover = "#00ffff"
+            
+        elif current_theme == "Retro":
+            bg_main = "#2b2b2b"
+            bg_panel = "#1a1a1a"
+            bg_input = "#0f0f0f"
+            bg_list = "#0f0f0f"
+            text_primary = "#33ff33"
+            text_secondary = "#33ff33"
+            border_color = "#33ff33"
+            hover_bg = "#3a3a3a"
+            selected_bg = "#004400"
+            selected_text = "#66ff66"
+            scrollbar_bg = "#3a3a3a"
+            scrollbar_handle = "#33ff33"
+            scrollbar_hover = "#66ff66"
+            
+        elif current_theme == "Gaming":
+            # Zelda-inspired green theme
+            bg_main = "#1a3a1a"
+            bg_panel = "#2d5a2d"
+            bg_input = "#1e4a1e"
+            bg_list = "#1e4a1e"
+            text_primary = "#f5f5dc"
+            text_secondary = "#ffffff"
+            border_color = "#5c8a5c"
+            hover_bg = "#3d6a3d"
+            selected_bg = "#4d7a4d"
+            selected_text = "#ffeb3b"
+            scrollbar_bg = "#3d6a3d"
+            scrollbar_handle = "#5c8a5c"
+            scrollbar_hover = "#7caa7c"
 
         self.setStyleSheet(
             f"""
@@ -1077,8 +1140,6 @@ Focus on giving them an EDGE, not basic walkthrough advice. Search for speedrun 
             QPushButton:disabled {{ background-color: #cccccc; color: #666666; }}
             QPushButton#deleteButton {{ background-color: #d32f2f; }}
             QPushButton#deleteButton:hover {{ background-color: #b71c1c; }}
-            QPushButton#themeButton {{ background-color: {bg_input}; color: {text_primary}; border: 1px solid {border_color}; }}
-            QPushButton#themeButton:hover {{ background-color: {hover_bg}; }}
             QComboBox {{ background-color: {bg_input}; color: {text_primary}; border: 2px solid {border_color}; border-radius: 4px; padding: 5px; }}
             QComboBox:hover {{ border: 2px solid #0078d4; }}
             QComboBox::drop-down {{ border: none; }}

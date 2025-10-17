@@ -80,11 +80,22 @@ class DataManager:
         if os.path.exists(self.settings_file):
             try:
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    settings = json.load(f)
+                    
+                # Migrate old dark_mode boolean to new theme system
+                if "dark_mode" in settings and "theme" not in settings:
+                    settings["theme"] = "Dark" if settings["dark_mode"] else "Light"
+                
+                # Remove deprecated dark_mode key
+                if "dark_mode" in settings:
+                    del settings["dark_mode"]
+                    self.save_settings(settings)  # Save the migrated settings
+                    
+                return settings
             except Exception as e:
                 print(f"Error loading settings: {e}")
-                return {"dark_mode": True, "ai_provider": "Gemini", "api_key": ""}
-        return {"dark_mode": True, "ai_provider": "Gemini", "api_key": ""}
+                return {"theme": "Dark", "ai_provider": "Gemini", "api_key": ""}
+        return {"theme": "Dark", "ai_provider": "Gemini", "api_key": ""}
     
     def save_settings(self, settings):
         """Save settings to JSON file"""

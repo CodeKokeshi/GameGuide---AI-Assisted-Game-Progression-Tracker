@@ -1,2 +1,20 @@
-Bug Fixed
-- Guide Display is now responsive.
+What's New
+----------
+
+🎨 Multiple Themes
+  - 5 themes: Dark, Light, Cyberpunk, Retro, Gaming
+  - Theme dropdown with emoji indicators
+  - Persistent theme selection
+
+Bug Fixes
+---------
+
+- Fixed guide display not being responsive (now stretches with window size)
+- Fixed settings migration from old dark_mode boolean to theme string
+
+Technical Changes
+-----------------
+
+- Replaced theme toggle button with dropdown (QComboBox)
+- Removed deprecated dark_mode boolean setting
+- Automatic settings migration for seamless upgrade
