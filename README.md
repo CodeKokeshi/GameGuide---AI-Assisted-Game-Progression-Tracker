@@ -264,4 +264,4 @@ This project is open source. Feel free to use, modify, and distribute.
 
 **Made with ❤️ for gamers who forget what they were doing**
 
-*Last Updated: 2025-10-17 | Version: 2.0*
+*Last Updated: 2025-10-17 | Version: 2.0.1*
