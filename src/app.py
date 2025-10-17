@@ -236,9 +236,7 @@ class GameTrackerApp(QMainWindow):
         self.view_guide_text.setMinimumHeight(150)
         self.view_guide_text.setFrameShape(QFrame.Shape.NoFrame)
         self.view_guide_text.setContentsMargins(0, 0, 0, 10)
-        layout.addWidget(self.view_guide_text)
-
-        layout.addStretch()
+        layout.addWidget(self.view_guide_text, stretch=1)  # Add stretch to expand with window
 
         self.edit_button = QPushButton("✏️ Edit")
         self.edit_button.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))

@@ -1,0 +1,2 @@
+Bug Fixed
+- Guide Display is now responsive.
