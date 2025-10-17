@@ -145,10 +145,10 @@ For each game, track:
 - **Improved Library Display**: Cover art, custom icons, grid view, metadata badges
 
 ### ✅ Recently Completed
+- ✅ **Multiple Themes** (5 themes: Dark, Light, Cyberpunk, Retro, Gaming)
 - ✅ **Game Status Tracking** (In Progress/Completed with visual indicators)
 - ✅ **Output Style Dropdown** (5 preset styles + custom)
 - ✅ **Markdown Rendering** (Beautiful formatting in view mode)
-- ✅ **Dark/Light Theme Toggle**
 
 ---
 
