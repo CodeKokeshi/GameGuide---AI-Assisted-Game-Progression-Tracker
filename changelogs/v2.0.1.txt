@@ -11,6 +11,16 @@ What's New
   - Adjacent arrow toggle to switch between ascending and descending order
   - Remembers selection across sessions
 
+⌨️ Keyboard Shortcuts
+  - Ctrl+N adds a new game
+  - Ctrl+E enters edit mode for the selected game
+  - Ctrl+S saves and exits edit mode
+  - Delete removes the selected game from the library
+
+🖥️ View Mode Polish
+  - Fixed top-aligned layout when a game has no guide hint yet
+  - Labels and status blocks keep compact spacing without extra whitespace
+
 Bug Fixes
 ---------
 

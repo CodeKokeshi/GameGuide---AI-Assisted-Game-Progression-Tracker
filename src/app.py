@@ -27,9 +27,10 @@ from PyQt6.QtWidgets import (
     QDialog,
     QToolButton,
     QMenu,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QThread
-from PyQt6.QtGui import QFont, QIcon, QAction
+from PyQt6.QtGui import QFont, QIcon, QAction, QKeySequence, QShortcut
 
 import markdown
 
@@ -79,6 +80,7 @@ class GameTrackerApp(QMainWindow):
             self.setWindowIcon(QIcon(self.app_icon_path))
 
         self._build_ui()
+        self._setup_shortcuts()
         self._apply_styles()
         self._load_api_settings()
 
@@ -103,6 +105,42 @@ class GameTrackerApp(QMainWindow):
 
         main_layout.addWidget(splitter)
         central_widget.setLayout(main_layout)
+
+    def _setup_shortcuts(self):
+        """Configure keyboard shortcuts published in the README."""
+        self._shortcut_add_game = QShortcut(QKeySequence("Ctrl+N"), self)
+        self._shortcut_add_game.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._shortcut_add_game.activated.connect(self._handle_add_game_shortcut)
+
+        self._shortcut_enter_edit = QShortcut(QKeySequence("Ctrl+E"), self)
+        self._shortcut_enter_edit.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._shortcut_enter_edit.activated.connect(self._handle_enter_edit_shortcut)
+
+        self._shortcut_exit_edit = QShortcut(QKeySequence("Ctrl+S"), self)
+        self._shortcut_exit_edit.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._shortcut_exit_edit.activated.connect(self._handle_exit_edit_shortcut)
+
+        self._shortcut_delete_game = QShortcut(QKeySequence(Qt.Key.Key_Delete), self.game_list)
+        self._shortcut_delete_game.setContext(Qt.ShortcutContext.WidgetShortcut)
+        self._shortcut_delete_game.activated.connect(self._handle_delete_game_shortcut)
+
+    def _handle_add_game_shortcut(self):
+        self._add_new_game()
+
+    def _handle_enter_edit_shortcut(self):
+        if not self.current_game or self.is_edit_mode:
+            return
+        self._enter_edit_mode()
+
+    def _handle_exit_edit_shortcut(self):
+        if not self.current_game or not self.is_edit_mode:
+            return
+        self._exit_edit_mode()
+
+    def _handle_delete_game_shortcut(self):
+        if not self.current_game:
+            return
+        self._delete_current_game()
 
     def _create_theme_bar(self):
         bar = QWidget()
@@ -242,12 +280,14 @@ class GameTrackerApp(QMainWindow):
         self.game_title_label = QLabel("")
         self.game_title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         self.game_title_label.setWordWrap(True)
+        self.game_title_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.game_title_label)
 
         # View mode: Status as label
         self.view_status_label = QLabel("🎮 Status:")
         self.view_status_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.view_status_label.setWordWrap(True)
+        self.view_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.view_status_label.setContentsMargins(0, 5, 0, 0)
         layout.addWidget(self.view_status_label)
 
@@ -256,6 +296,7 @@ class GameTrackerApp(QMainWindow):
         self.view_status_text.setWordWrap(True)
         self.view_status_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.view_status_text.setContentsMargins(0, 0, 0, 5)
+        self.view_status_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_status_text)
 
         self.divider = QFrame()
@@ -267,6 +308,7 @@ class GameTrackerApp(QMainWindow):
         self.view_situation_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.view_situation_label.setWordWrap(True)
         self.view_situation_label.setContentsMargins(0, 10, 0, 5)
+        self.view_situation_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_situation_label)
 
         self.view_situation_text = QLabel("")
@@ -274,12 +316,14 @@ class GameTrackerApp(QMainWindow):
         self.view_situation_text.setWordWrap(True)
         self.view_situation_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.view_situation_text.setContentsMargins(0, 0, 0, 10)
+        self.view_situation_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_situation_text)
 
         self.view_objective_label = QLabel("🎯 Next Objective")
         self.view_objective_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.view_objective_label.setWordWrap(True)
         self.view_objective_label.setContentsMargins(0, 10, 0, 5)
+        self.view_objective_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_objective_label)
 
         self.view_objective_text = QLabel("")
@@ -287,12 +331,14 @@ class GameTrackerApp(QMainWindow):
         self.view_objective_text.setWordWrap(True)
         self.view_objective_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.view_objective_text.setContentsMargins(0, 0, 0, 10)
+        self.view_objective_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_objective_text)
 
         self.view_guide_label = QLabel("💡 Guide Hint")
         self.view_guide_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.view_guide_label.setWordWrap(True)
         self.view_guide_label.setContentsMargins(0, 10, 0, 5)
+        self.view_guide_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.view_guide_label)
 
         self.view_guide_text = QTextBrowser()
@@ -447,6 +493,7 @@ class GameTrackerApp(QMainWindow):
         button_row.addWidget(self.delete_button)
 
         layout.addLayout(button_row)
+        layout.addStretch(1)
 
         self._set_details_enabled(False)
 
